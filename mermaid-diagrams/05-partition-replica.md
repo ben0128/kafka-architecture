@@ -8,90 +8,55 @@
 ```mermaid
 graph TB
     %% 定義樣式
-    classDef leader fill:#ffcdd2,stroke:#d32f2f,stroke-width:3px,color:#000
-    classDef follower fill:#c8e6c9,stroke:#388e3c,stroke-width:2px,color:#000
-    classDef broker fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:#000
-    classDef topic fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    classDef leader fill:#ff5252,stroke:#d32f2f,stroke-width:2px,color:white
+    classDef follower fill:#4caf50,stroke:#2e7d32,stroke-width:2px,color:white
+    classDef broker fill:#2196f3,stroke:#1976d2,stroke-width:2px,color:white
 
-    %% Topic 定義
-    subgraph "Topics"
-        T1[orders-topic<br/>Partitions: 6<br/>Replication: 3]:::topic
-        T2[payments-topic<br/>Partitions: 3<br/>Replication: 2]:::topic
+    %% Topic 概要
+    subgraph Topic["📊 orders-topic (RF=3)"]
+        INFO["3 分區 × 3 副本 = 9 個分區副本"]
     end
 
-    %% Kafka 叢集
-    subgraph "Kafka Cluster"
-        subgraph "Broker 1 (ID: 1)"
-            B1[Broker 1]:::broker
-            B1_O0[orders-0<br/>Leader]:::leader
-            B1_O3[orders-3<br/>Leader]:::leader
-            B1_O1[orders-1<br/>Follower]:::follower
-            B1_O4[orders-4<br/>Follower]:::follower
-            B1_O2[orders-2<br/>Follower]:::follower
-            B1_O5[orders-5<br/>Follower]:::follower
-            B1_P0[payments-0<br/>Leader]:::leader
-            B1_P1[payments-1<br/>Follower]:::follower
-            B1_P2[payments-2<br/>Leader]:::leader
+    %% 分區分布矩陣
+    subgraph Matrix["🏢 Kafka Cluster"]
+        %% Broker 1 - Leader for P0
+        subgraph B1["🖥️ Broker-1"]
+            P0_L["P0 🔴"]:::leader
+            P1_F1["P1"]:::follower
+            P2_F1["P2"]:::follower
         end
 
-        subgraph "Broker 2 (ID: 2)"
-            B2[Broker 2]:::broker
-            B2_O1[orders-1<br/>Leader]:::leader
-            B2_O4[orders-4<br/>Leader]:::leader
-            B2_O0[orders-0<br/>Follower]:::follower
-            B2_O2[orders-2<br/>Follower]:::follower
-            B2_O3[orders-3<br/>Follower]:::follower
-            B2_O5[orders-5<br/>Follower]:::follower
-            B2_P1[payments-1<br/>Leader]:::leader
-            B2_P0[payments-0<br/>Follower]:::follower
-            B2_P2[payments-2<br/>Follower]:::follower
+        %% Broker 2 - Leader for P1  
+        subgraph B2["🖥️ Broker-2"]
+            P0_F2["P0"]:::follower
+            P1_L["P1 🔴"]:::leader
+            P2_F2["P2"]:::follower
         end
 
-        subgraph "Broker 3 (ID: 3)"
-            B3[Broker 3]:::broker
-            B3_O2[orders-2<br/>Leader]:::leader
-            B3_O5[orders-5<br/>Leader]:::leader
-            B3_O0[orders-0<br/>Follower]:::follower
-            B3_O1[orders-1<br/>Follower]:::follower
-            B3_O3[orders-3<br/>Follower]:::follower
-            B3_O4[orders-4<br/>Follower]:::follower
-            B3_P0[payments-0<br/>Follower]:::follower
-            B3_P1[payments-1<br/>Follower]:::follower
-            B3_P2[payments-2<br/>Follower]:::follower
+        %% Broker 3 - Leader for P2
+        subgraph B3["🖥️ Broker-3"]
+            P0_F3["P0"]:::follower
+            P1_F3["P1"]:::follower  
+            P2_L["P2 🔴"]:::leader
         end
     end
 
-    %% ISR (In-Sync Replicas) 與追隨者抓取方向
-    subgraph "副本同步 (Follower Fetch → Leader)"
-        B2_O0 -.->|Follower Fetch| B1_O0
-        B3_O0 -.->|Follower Fetch| B1_O0
-
-        B1_O1 -.->|Follower Fetch| B2_O1
-        B3_O1 -.->|Follower Fetch| B2_O1
-
-        B1_O2 -.->|Follower Fetch| B3_O2
-        B2_O2 -.->|Follower Fetch| B3_O2
-
-        B2_O3 -.->|Follower Fetch| B1_O3
-        B3_O3 -.->|Follower Fetch| B1_O3
-
-        B1_O4 -.->|Follower Fetch| B2_O4
-        B3_O4 -.->|Follower Fetch| B2_O4
-
-        B1_O5 -.->|Follower Fetch| B3_O5
-        B2_O5 -.->|Follower Fetch| B3_O5
-
-        B2_P0 -.->|Follower Fetch| B1_P0
-        B3_P0 -.->|Follower Fetch| B1_P0
-
-        B1_P1 -.->|Follower Fetch| B2_P1
-        B3_P1 -.->|Follower Fetch| B2_P1
-
-        B2_P2 -.->|Follower Fetch| B1_P2
-        B3_P2 -.->|Follower Fetch| B1_P2
+    %% 核心同步關係 (只顯示關鍵路徑)
+    subgraph Sync["🔄 副本同步"]
+        P0_F2 -.->|fetch| P0_L
+        P0_F3 -.->|fetch| P0_L
+        P1_F1 -.->|fetch| P1_L
+        P1_F3 -.->|fetch| P1_L
+        P2_F1 -.->|fetch| P2_L
+        P2_F2 -.->|fetch| P2_L
     end
 
-    class B2_O0,B3_O0,B1_O1,B3_O1,B1_O2,B2_O2,B2_O3,B3_O3,B1_O4,B3_O4,B1_O5,B2_O5,B2_P0,B3_P0,B1_P1,B3_P1,B2_P2,B3_P2 follower
+    %% 圖例
+    subgraph Legend["📋 圖例"]
+        L["🔴 Leader"]:::leader
+        F["Follower"]:::follower
+        S["fetch = 副本同步"]
+    end
 ```
 
 ## 分區分布策略
@@ -104,22 +69,14 @@ graph TB
 
 ### 副本配置詳情
 
-#### orders-topic (6 分區, 3 副本)
-| 分區 | Leader | Follower 1 | Follower 2 | ISR |
-|------|--------|------------|------------|-----|
-| 0 | Broker 1 | Broker 2 | Broker 3 | [1,2,3] |
-| 1 | Broker 2 | Broker 1 | Broker 3 | [2,1,3] |
-| 2 | Broker 3 | Broker 1 | Broker 2 | [3,1,2] |
-| 3 | Broker 1 | Broker 2 | Broker 3 | [1,2,3] |
-| 4 | Broker 2 | Broker 1 | Broker 3 | [2,1,3] |
-| 5 | Broker 3 | Broker 1 | Broker 2 | [3,1,2] |
+#### orders-topic (3 分區, 3 副本)
+| 分區 | Leader | Follower 1 | Follower 2 | ISR | 說明 |
+|------|--------|------------|------------|-----|------|
+| P0 | Broker-1 🔴 | Broker-2 | Broker-3 | [1,2,3] | 輪流領導 |
+| P1 | Broker-2 🔴 | Broker-1 | Broker-3 | [2,1,3] | 負載平衡 |
+| P2 | Broker-3 🔴 | Broker-1 | Broker-2 | [3,1,2] | 高可用性 |
 
-#### users-topic (3 分區, 2 副本)
-| 分區 | Leader | Follower 1 | ISR |
-|------|--------|------------|-----|
-| 0 | Broker 1 | Broker 2 | [1,2] |
-| 1 | Broker 2 | Broker 1 | [2,1] |
-| 2 | Broker 1 | Broker 2 | [1,2] |
+> **🎯 核心概念**：每個 Broker 既是某個分區的 Leader，也是其他分區的 Follower，實現負載均衡。
 
 ## 關鍵概念
 
